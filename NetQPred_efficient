@@ -1,0 +1,107 @@
+#! /usr/bin/bash
+
+<<COMMENT1
+clear;
+
+echo "Copyright (c) 2013, Soma Ghosh, Saraswathi Vishveshwara, Indian Institute of Science, Bangalore, India"
+echo "All rights reserved"
+echo 
+echo "*****************************************************************"
+echo 
+echo "CONTACT INFORMATION"
+echo
+echo "*****************************************************************"
+echo "soma@mbu.iisc.ernet.in"
+echo "sv@mbu.iisc.ernet.in"
+echo
+echo
+echo "Redistribution and use in source and binary forms, with or without modification are permitted provided that the following conditions are met:"
+echo
+echo "(1) Redistributions of source code must retain the above copyright notice, this list of conditions and the following disclaimer."
+echo
+echo "(2) Redistributions in binary form must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution."
+echo
+echo "(3) Neither the name of the Indian Institute of Science, Bangalore, India nor the names of its contributors may be used to endorse or promote products derived from this software without specific prior written permission."
+echo
+echo "# THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS \"AS IS\" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESSINTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY,OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE."
+echo
+echo "Please Note "
+echo "___________________________________________________________________________________________"
+echo "External softwares used for the analysis :"
+echo
+echo "(1)CFinder: Copyright (c) Gergely Palla, Imre Derenyi, Illes Farkas, Tamas Vicsek, Peter Pollner, Daniel Abel."
+echo "(2)HBPLUS: Hydrogen Bond Calculator v 3.2 (c) I McDonald, D Naylor, D Jones and J Thornton 1993. All Rights Reserved."
+echo "(3)LibSVM: Copyright (c) 2000-2012 Chih-Chung Chang and Chih-Jen Lin. All rights reserved."
+echo "(4)LIBLINEAR: Copyright (c) 2007-2013 The LIBLINEAR Project. All rights reserved."
+echo "___________________________________________________________________________________________"
+echo
+echo
+COMMENT1
+
+#**************************************************************************
+#inputs to the code: input directory(T0645) and list of pdbfile (list1)
+#outputs: 
+#*** Please make sure that network_params dir is empty before running the analysis for a particulat target
+#**************************************************************************
+
+
+#curdir="/home/bhageerathH/bhageerathH/DECOY_GEN/NetQPred_bhag";
+curdir="/home/sv-lab/amar/project5_CASP/software/NetQPred_bhag";
+ 
+<<COMMENT2
+# get exe
+chmod 777 $curdir/BIN/hbplus/hbplus
+chmod 777 $curdir/BIN/CFinder-2.0.5--1440/CFinder_commandline
+chmod 777 $curdir/BIN/liblinear-ranksvm-1.93/predict
+chmod 777 $curdir/BIN/libsvm-3.12/svm-predict
+chmod 777 $curdir/BIN/libsvm-3.12/svm-scale
+g++ $curdir/BIN/soffer_size_norm.cpp -o $curdir/BIN/a.exe
+g++ $curdir/BIN/soffer.cpp -o $curdir/BIN/soffer.exe
+
+COMMENT2
+
+# get network params
+
+#rm -rf network_params
+mkdir network_params
+list_file=$1
+
+bash $curdir/BIN/gen_adjmat_eff.sh $curdir $list_file
+
+## SVM input file
+
+#rm -rf SVM_analysis
+mkdir SVM_analysis
+cd network_params
+perl $curdir/BIN/get_data_for_SVM.pl $list_file >> ../SVM_analysis/SVM_input.$list_file
+mv model_id.$list_file ../SVM_analysis
+
+cd ../SVM_analysis
+
+cp $curdir/BIN/SVM/* ./
+cp $curdir/BIN/SVR/* ./
+$curdir/BIN/libsvm-3.12/svm-scale -r range SVM_input.$list_file > SVM_input.$list_file.scaled
+#$curdir/BIN/libsvm-3.12/svm-predict SVM_input.scaled train_subset.scaled.model prediction > log
+#rm log
+#paste model_id prediction > models_classified
+#mv models_classified $curdir/models_classified_$list_file
+
+# SVR analysis
+
+$curdir/BIN/liblinear-ranksvm-1.93/predict -q SVM_input.$list_file.scaled train_subset.scaled.model_SVR rank_prediction.$list_file
+paste model_id.$list_file rank_prediction.$list_file | sort -k2 -rn > ../models_ranked.$list_file
+#mv models_ranked ../models_ranked_$list_file
+
+#echo
+#echo "Analysis completed !!!"
+#echo
+#echo "*******************************************************************************************"
+#echo ""
+#echo " FILE :"RESULTS/models_classified" contain the classification of the models as NATIVE like (1) or NON-NATIVE like (0)"
+#echo " FILE :"RESULTS/models_ranked" contain the ranks for each model"
+#echo ""
+#echo "*******************************************************************************************"
+#echo
+rm -rf network_params
+rm -rf SVM_analysis
+#cd $curdir
